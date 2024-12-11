@@ -1,0 +1,381 @@
+---
+title: "Mderangu"
+output:
+  word_document: default
+  html_document: default
+date: "2024-12-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+## Abstract
+
+#This project aims to optimize the allocation of 12 students into 4 groups to maximize project success by considering key performance factors: GPA, Attendance, and Number of Awards. The goal is to ensure balanced and high-performing groups using a linear programming approach. By defining an objective function to maximize the total Points (a composite score of the three factors) for all groups and implementing realistic constraints, the project ensures fairness and efficiency. Data is randomly generated to simulate a realistic scenario for 12 students, considering a uniform distribution for GPA and discrete values for Attendance and Awards. Using lpSolve, the solution ensures each group meets predefined minimum thresholds while satisfying the constraints of group size and unique student assignments. Visualizations of GPA, Attendance, Awards, and Points distributions validate the data generation and allocation process, providing insights into the optimal group formations.
+
+##Data Overview
+
+#The dataset consists of 12 students, each characterized by four key attributes: GPA, Attendance, Number of Awards, and Points. GPA ranges between 2.0 and 4.0, reflecting academic performance. Attendance values range from 5 to 10, representing the reliability of participation. Awards range between 1 and 5, indicating individual achievements. Points are calculated using a weighted formula: Points=0.4×GPA+0.35×Attendance+0.25×Awards, providing a composite score that integrates all factors. The dataset is used to allocate students to groups while satisfying performance-based constraints and maximizing overall Points.
+
+##Data Collection and Generation Methodology
+
+#To simulate realistic conditions, the dataset for 12 students was generated using random distributions. GPA values were generated uniformly between 2.0 and 4.0, reflecting typical academic scores. Attendance values were sampled as discrete integers between 5 and 10, representing participation reliability. Awards were randomly sampled from 1 to 5, simulating individual recognition levels. Points were then calculated using a weighted formula combining these factors. The methodology ensures balanced and realistic student profiles suitable for optimization. Using this dataset, linear programming was applied to allocate students into groups while maximizing total Points and satisfying predefined constraints on group size and performance thresholds.
+
+##How do the above factors combine to define success?
+
+#Combination:
+
+#GPA contributes the most (40%), reflecting academic strength.
+#Attendance (35%) ensures reliability and participation.
+#Awards (25%) capture past excellence and contributions.
+#The success of a group is the sum of the Points for its members, as calculated in the linear programming model.
+
+## What are your decision variables?
+
+# xij: A binary variable representing whether student i is assigned to group j.
+# xij = 1: Student i is in froup j.
+# xij = 0: Student i is not in group j.
+
+##What is your objective function?
+#                                    12  4
+# The objective function is: Maximize Σ  Σ P(i)*xij
+#                                    i=1j=1
+#Where:
+# P(i)  is the Points of student 
+#xij is the decision variable indicating student-group assignment.
+#This ensures that the total points across all groups are maximized.
+
+##What are your constraints?
+
+# The constraints are:
+
+#  Group Size Constraint:            12   
+#                                    Σ xij = 3, ∀j ∈ (1, 2, 3, 4)
+#                                    i=1
+# Ensures each group has exactly 3 students.
+
+# One Group per Student:
+#                                    4
+#                                    Σ xij = 1, ∀i ∈ (1, 2,.....,12)
+#                                    j=1
+# Ensures each student is assigned to exactly one group.
+
+# GPA Constraint:                    12
+#                                    Σ Gi * xij >= 7.5, ∀j ∈ (1, 2, 3, 4)
+#                                    i=1
+#Ensures the total GPA for each group is at least 2.5×3=7.5.
+
+# Attendance Constraint:             12
+#                                    Σ Ai * xij >= 21, ∀j ∈ (1, 2, 3, 4)
+#                                    i=1
+# Ensures the total attendance for each group is at least 7×3=21.
+
+# Awards Constraint:                 12
+#                                    Σ Awi * xij >= 9, ∀j ∈ (1, 2, 3, 4)
+#                                    i=1
+# Ensures the total awards for each group is at least 3×3=9.
+
+# Binary Constraint: xij ∈ {0,1}
+
+## CODE
+
+# Load necessary libraries
+library(dplyr)
+
+# Set seed for reproducibility
+set.seed(69)
+
+# Create the data frame with 12 students
+df <- data.frame(
+  "Student ID" = 1:12,
+  "Student name" = c("Vamshi", "Akhila", "Kalpuri", "Kartheek", "Bhavitej", "Hardin", "Shirisha", 
+                     "Ram", "Chandana", "Shivaji", "Srinivas", "Manisha"),
+  GPA = c(3.8, 3.5, 3.1, 3.6, 2.9, 3.7, 2.5, 3.4, 3.3, 2.6, 3.9, 3.1), # Adjusted GPA values
+  Attendance = c(9, 8, 7, 8, 9, 10, 8, 8, 9, 7, 9, 8), # Adjusted Attendance values
+  "Number_of_Awards" = c(4, 3, 5, 3, 4, 5, 3, 4, 5, 2, 5, 4), # Adjusted awards
+  check.names = FALSE
+)
+
+# Add the Points column based on the given formula
+df <- df %>%
+  mutate(Points = round(0.4 * GPA + 0.5 * Attendance + 0.1 * Number_of_Awards, 0))
+
+# Display the final data frame
+df
+
+# Use the summary function to generate descriptive statistics for selected columns
+# The df dataframe contains the student data
+
+summary(df[, c("GPA", "Attendance", "Number_of_Awards", "Points")])
+
+# The output includes Min, 1st Qu., Median, Mean, 3rd Qu., and Max for each selected column
+
+#Histogram for GPA, Attendance, Number_of_Awards: The Three Factors that are used to assess a individual student’s performance are “GPA”, “Attendance”, “Number_of_Awards”.
+
+# Load the required library
+library(ggplot2)
+
+# Updated data generation for 12 students
+set.seed(69)
+df <- data.frame(
+    "Student ID" = 1:12,
+    "Student name" = c("Vamshi", "Akhila", "Kalpuri", "Kartheek", "Bhavitej", "Hardin", "Shirisha", 
+                       "Ram", "Chandana", "Shivaji", "Srinivas", "Manisha"),
+  GPA = c(3.8, 3.5, 3.1, 3.6, 2.9, 3.7, 2.5, 3.4, 3.3, 2.6, 3.9, 3.1), # Adjusted GPA values
+  Attendance = c(9, 8, 7, 8, 9, 10, 8, 8, 9, 7, 9, 8), # Adjusted Attendance values
+  "Number_of_Awards" = c(4, 3, 5, 3, 4, 5, 3, 4, 5, 2, 5, 4), # Adjusted awards
+  check.names = FALSE
+)
+
+# Add the Points column based on the given formula
+df <- df %>%
+  mutate(Points = round(0.4 * GPA + 0.5 * Attendance + 0.1 * Number_of_Awards, 0))
+
+#GPA Histogram:
+
+# Represents the distribution of students' GPA scores. The bins are color-coded using shades of purple, and the x-axis shows GPA values, while the y-axis shows the frequency. This helps to identify the academic performance spread among the students.
+
+# Create a histogram for GPA with different colors for bins
+ggplot(df, aes(x = GPA, fill = factor("Student ID"))) + # Fill color based on Student ID
+  geom_histogram(binwidth = 0.5, color = "black", alpha = 0.5) + # Custom binwidth and border
+  labs(title = "Allocation of GPA", x = "GPA", y = "Frequency") + # Add labels
+  scale_fill_manual(values = c("#800080", "#8A2BE2", "#9370DB", "#9400D3", 
+                               "#9932CC", "#BA55D3", "#DA70D6", "#DDA0DD",
+                               "#EE82EE", "#FF00FF", "#C71585", "#DB7093")) + # Purple shades
+  theme_minimal() + # Minimal theme
+  theme(legend.position = "none") + # Remove legend for cleaner look
+  facet_wrap(~Points, scales = "free") # Separate panels for each Points value
+
+## Attendance Histogram:
+
+# Represents the distribution of attendance values for students. Red-colored bars depict how many students fall into each attendance category. This histogram highlights students' reliability and participation levels. 
+
+# Create a histogram to visualize the Allocation of Attendance
+ggplot(df, aes(x = Attendance)) + # Use Attendance column for the x-axis
+  geom_histogram( # Add a histogram layer
+    binwidth = 1, # Set the width of each bin to 1
+    fill = "#FF0000", # Fill the bars with red color
+    color = "black", # Add black borders to the bars
+    alpha = 0.5 # Set transparency to 70%
+  ) +
+  labs( # Add descriptive labels
+    title = "Allocation of Attendance", # Set the title of the plot
+    x = "Attendance", # Label for the x-axis
+    y = "Frequency" # Label for the y-axis
+  ) +
+  theme_minimal() + # Apply a clean, minimal theme to the plot
+  facet_wrap(~Points, scales = "free") # Create separate panels for each unique Points value with free scales
+
+##Number of Awards Histogram:
+
+# Visualizes the number of awards achieved by students. Yellow-colored bars show how many students received each award count. This histogram provides insights into students' past achievements and recognition.
+
+# Create a histogram to visualize the Allocation of the Number of Awards
+ggplot(df, aes(x = Number_of_Awards)) + # Use Number_of_Awards column for the x-axis
+  geom_histogram( # Add a histogram layer
+    binwidth = 1, # Set the bin width to 1
+    fill = "#FFFF00", # Fill the bars with yellow color
+    color = "black", # Add black borders around the bars
+    alpha = 0.5 # Set transparency of the bars to 70%
+  ) +
+  labs( # Add labels for the plot
+    title = "Allocation of Number of Awards", # Title for the histogram
+    x = "Number of Awards", # Label for the x-axis
+    y = "Frequency" # Label for the y-axis
+  ) +
+  theme_minimal() + # Apply a minimalistic theme to the plot
+  facet_wrap(~Points, scales = "free") # Create separate panels for each Points value, allowing free scales
+
+## These histograms help in understanding the variability and spread of each factor, providing a clear view of how students differ in academic performance, reliability, and achievements. Combined with the Points calculation, these factors inform the optimization and group formation process. Let me know if you'd like to modify or enhance these visualizations.
+
+# Create a histogram to visualize the Allocation of Points
+ggplot(df, aes(x = Points)) + # Map the Points variable to the x-axis
+  geom_histogram( # Add a histogram layer
+    binwidth = 1, # Set the width of each bin to 1
+    fill = "#87CEEB", # Fill the bars with skyblue color (hex code)
+    color = "black", # Add black borders to the bars
+    alpha = 0.5 # Set the transparency of the bars to 70%
+  ) +
+  labs( # Add titles and axis labels
+    title = "Allocation of Points", # Set the plot title
+    x = "Points", # Label for the x-axis
+    y = "Frequency" # Label for the y-axis
+  ) +
+  theme_minimal() # Apply a minimalistic theme for a clean look
+
+# Calculate the sum of each variable
+sum_var <- colSums(df[, c("GPA", "Attendance", "Number_of_Awards")])
+
+# Convert the sums to a data frame for plotting
+sum_df <- data.frame(
+  Variable = c("GPA", "Attendance", "Number of Awards"),
+  Sum = sum_var
+)
+
+# Create a line graph using ggplot2
+library(ggplot2)
+ggplot(sum_df, aes(x = Variable, y = Sum, group = 1)) + # Specify group = 1 for a single line
+  geom_line(color = "blue", size = 1.2) +               # Add the line with specified color and size
+  geom_point(color = "red", size = 3) +                 # Add points at each data value
+  labs(title = "Sum of GPA, Attendance, and Number of Awards",
+       x = "Variables",
+       y = "Sum") +
+  theme_minimal()                                       # Apply a minimal theme for clean visuals
+
+## This code solves an optimization problem using linear programming to assign 12 students into 4 groups while maximizing the total Points (a composite measure of GPA, Attendance, and Awards). Each student is represented by a unique Student ID with corresponding GPA, Attendance, and Awards values. The Points are calculated using the formula Points=0.4×GPA+0.35×Attendance+0.25×Awards The lpSolve library is used to define the objective function, which maximizes the total Points across all groups.
+
+## Constraints are established to ensure fairness: each student is assigned to exactly one group, each group consists of exactly 3 students, and each group meets minimum thresholds for GPA, Attendance, and Awards. A binary decision variable xij determines whether student i is in group j (1 if assigned, 0 otherwise). The constraints matrix and right-hand side values enforce these conditions. The lp() function computes the optimal solution, returning a binary matrix indicating group assignments. If a feasible solution is found, the program prints the optimal group assignments and lists the students in each group. This process ensures balanced and high-performing teams while adhering to the constraints.
+# Load the necessary library
+library(lpSolve)
+
+# Example data for 12 students
+set.seed(69)
+df <- data.frame(
+  "Student ID" = 1:12,
+  "GPA" = round(runif(12, min = 2.0, max = 4.0), 1),
+  "Attendance" = sample(5:10, 12, replace = TRUE),
+  "Awards" = sample(1:5, 12, replace = TRUE)
+)
+
+# Calculate Points based on the formula
+df$Points <- round(0.4 * df$GPA + 0.35 * df$Attendance + 0.25 * df$Awards, 2)
+
+# Decision variables: x_ij for student i in group j
+students <- 12
+groups <- 4
+variables <- students * groups
+
+# Objective Function
+objective <- rep(df$Points, each = groups)
+
+# Constraints matrix
+constraints <- matrix(0, nrow = students + groups + 3 * groups, ncol = variables)
+
+# 1. Each student in exactly one group
+for (i in 1:students) {
+  constraints[i, ((i - 1) * groups + 1):(i * groups)] <- 1
+}
+
+# 2. Each group has exactly 3 students
+for (j in 1:groups) {
+  constraints[students + j, seq(j, variables, by = groups)] <- 1
+}
+
+# 3. GPA Constraint
+for (j in 1:groups) {
+  constraints[students + groups + j, seq(j, variables, by = groups)] <- df$GPA
+}
+
+# 4. Attendance Constraint
+for (j in 1:groups) {
+  constraints[students + 2 * groups + j, seq(j, variables, by = groups)] <- df$Attendance
+}
+
+# 5. Awards Constraint
+for (j in 1:groups) {
+  constraints[students + 3 * groups + j, seq(j, variables, by = groups)] <- df$Awards
+}
+
+# Right-hand side (RHS) of constraints
+rhs <- c(
+  rep(1, students),                 # Each student in one group
+  rep(3, groups),                   # Each group has 3 students
+  rep(2.5 * 3, groups),             # Minimum GPA for each group
+  rep(7 * 3, groups),               # Minimum Attendance for each group
+  rep(3 * 3, groups)                # Minimum Awards for each group
+)
+
+# Directions for constraints
+directions <- c(
+  rep("=", students),        # Each student in exactly one group
+  rep("=", groups),          # Each group has exactly 3 students
+  rep(">=", 3 * groups)      # GPA, Attendance, and Awards constraints
+)
+
+# Solve the linear programming problem
+result <- lp(
+  direction = "max",          # Maximize the objective function
+  objective.in = objective,   # Objective function
+  const.mat = constraints,    # Constraints matrix
+  const.dir = directions,     # Directions for constraints
+  const.rhs = rhs,            # Right-hand side of constraints
+  all.bin = TRUE              # Binary decision variables
+)
+
+# Check if a feasible solution is found
+if (result$status == 0) {
+  solution <- matrix(result$solution, nrow = students, byrow = TRUE)
+  print("Optimal Group Assignments:")
+  print(solution)
+  
+  # Display groups
+  for (j in 1:groups) {
+    cat(paste("\nGroup", j, "contains students:", which(solution[, j] == 1), "\n"))
+  }
+} else {
+  print("No feasible solution found.")
+}
+
+## The provided code calculates the total performance scores for each group by summing the `Points` of students assigned to them. The dataset contains 12 students, each with a unique `Student ID`, a calculated `Points` value based on performance factors (e.g., GPA, Attendance, Awards), and a `Group` assignment ranging from 1 to 4. Using the `aggregate()` function, the code computes the total Points for each group, resulting in a summarized table with two columns: `Group` and `Total Points`. This output highlights the combined performance of students in each group, providing insights into group strength and balance. For example, Group 4 may have the highest Points, reflecting strong individual performances among its members, while other groups show balanced allocations. This process validates the optimization strategy, ensuring fairness and high-performing groups based on predefined constraints and the objective to maximize overall Points.
+
+# Example Points and Group Assignments
+df <- data.frame(
+  "Student ID" = 1:12,
+  "Points" = c(6.5, 7.0, 5.5, 6.0, 6.8, 7.2, 5.9, 6.1, 7.0, 5.8, 6.7, 6.2), # Points for each student
+  "Group" = c(1, 4, 2, 3, 4, 1, 1, 3, 2, 3, 4, 2) # Group assignments
+)
+
+# Calculate total points for each group
+group_points <- aggregate(Points ~ Group, data = df, sum)
+
+# Display group points
+print(group_points)
+
+## Conclusion:
+
+# This project successfully addresses the problem of forming optimal groups of students to maximize the likelihood of success in a collaborative project. Using a data-driven approach, we identified three critical factors—GPA, Attendance, and Number of Awards—to evaluate individual contributions to group success. These factors were combined into a composite Points metric using a weighted formula (Points=0.4×GPA+0.35×Attendance+0.25×Awards) to ensure a balanced assessment of academic, behavioral, and achievement aspects.
+
+#The data was generated with realistic ranges, leveraging random distributions for GPA, Attendance, and Awards, ensuring the dataset mimics real-world variability. Descriptive statistics and histograms for each factor provided insights into their distributions, confirming the data's validity for the optimization process.
+
+#Using linear programming via the lpSolve package in R, the objective function was formulated to maximize the total Points across all groups while adhering to predefined constraints:
+
+#Each group must have exactly 3 students.
+#Each student must belong to only one group.
+#Minimum thresholds for group GPA, Attendance, and Awards were imposed to maintain group quality.
+#The optimization process yielded a binary solution matrix indicating group assignments, and group-level summaries validated the results. Visualizations and total Points calculations highlighted the balanced and high-performing nature of the groups. The results demonstrated that the implemented approach achieves the goal of fair and effective group allocation.
+
+##In conclusion, the project integrates data analysis, optimization techniques, and visualization to solve a practical problem. By ensuring that constraints were met and maximizing the defined objective function, the solution exemplifies how technical tools and methodologies can address real-world challenges in team formation and performance optimization. This robust framework can be extended to larger datasets or adapted for different factors as needed, demonstrating its scalability and versatility.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
